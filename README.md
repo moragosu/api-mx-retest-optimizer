@@ -22,7 +22,7 @@
 .
 ├── logs/                     # 로그 파일 저장 디렉토리
 ├── .env.dev                  # 개발 환경 설정 파일
-├── .env.{loation}            # 운영 환경 설정 파일 (위치별) 예:.env.gumi
+├── .env.{location}            # 운영 환경 설정 파일 (위치별) 예:.env.gumi
 ├── pyproject.toml            # 프로젝트 설정 및 의존성 관리 파일
 ├── config.py                 # Pydantic-Settings를 사용한 환경 변수 관리
 ├── main.py                   # FastAPI 애플리케이션 메인 진입점 (lifespan, router 포함)
