@@ -107,10 +107,37 @@ REDIS_PASSWORD=<PASSWORD>
 - **ReDoc**: http://127.0.0.1:8000/redoc
 
 ### 6. 테스트 실행 방법
-클린 아키텍처 계층별로 마련된 테스트는 `pytest` 기반으로 작성되어 있습니다. 아래 명령으로 모든 테스트를 실행할 수 있습니다.
+이 프로젝트의 테스트 스위트는 **도메인 → 애플리케이션 → 인프라** 순으로 레이어를 따라가며 작성되어 있습니다. 테스트를 실행하기 전에 아래 순서를 참고하세요.
+
+#### 6.1 테스트 의존성 준비
+1. 개발용 가상환경을 초기화했다면 한 번만 다음 명령으로 테스트 도구를 설치합니다.
+   ```bash
+   uv sync --dev --native-tls
+   ```
+2. Redis 통합 테스트를 로컬에서 실행하려면 선택적으로 `fakeredis`를 추가합니다. (설치하지 않으면 해당 테스트는 자동으로 건너뜁니다.)
+   ```bash
+   uv pip install "fakeredis[asyncio]"
+   ```
+
+#### 6.2 전체 테스트 실행
+모든 계층의 테스트를 한 번에 실행하려면 프로젝트 루트에서 다음 명령을 실행합니다.
 
 ```bash
 uv run pytest
 ```
 
-> **참고:** Redis 통합 테스트는 `fakeredis`가 설치되어 있을 때만 실행되며, 의존성이 없으면 자동으로 건너뜁니다.
+#### 6.3 계층별 실행
+필요에 따라 관심 있는 계층만 선택적으로 실행할 수 있습니다.
+
+```bash
+# 도메인 규칙 검증
+uv run pytest tests/domain
+
+# 애플리케이션 서비스(유즈케이스) 검증
+uv run pytest tests/application
+
+# Redis 인프라 통합 테스트
+uv run pytest tests/infrastructure
+```
+
+> **참고:** `tests/infrastructure`는 `fakeredis`가 설치되어 있거나 별도의 Redis 테스트 인스턴스를 띄워 둔 환경에서만 정상적으로 동작합니다. 설치되어 있지 않으면 `pytest`가 해당 테스트를 건너뜁니다.
