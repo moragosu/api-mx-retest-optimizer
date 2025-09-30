@@ -28,17 +28,19 @@ async def process_single_check_request(
     try:
         result = await check_defect_item(request)
         return InspectionResponse(
-            retest_needed=result["retest_needed"],
+            remove_retest=result["remove_retest"],
             reproducibility_rate=result["reproducibility_rate"],
             alarm_history=result["alarm_history"],
+            target_line=result["target_line"],
             request_data=request
         )
     except Exception as e:
         logger.error(f"벌크 조회 중 개별 항목 에러: {e}")
         return InspectionResponse(
-            retest_needed=False,
+            remove_retest=False,
             reproducibility_rate=0.0,
             alarm_history="error",
+            target_line=False,
             request_data=request,
         )
 
@@ -53,7 +55,9 @@ async def check_bulk_items(bulk_request: BulkInspectionRequest = Body(...)):
     tasks = [process_single_check_request(req) for req in bulk_request.requests]
     results = await asyncio.gather(*tasks)
     logger.success(f"벌크 조회 처리 완료: {len(results)}개 항목")
-    return BulkInspectionResponse(results=results)
+    response = BulkInspectionResponse(results=results)
+    logger.info(f"벌크 조회 응답: {response.model_dump()}")
+    return response
 
 
 async def process_single_create_record(record: CreateRecordRequest) -> CreateResponse:
@@ -80,6 +84,7 @@ async def create_or_update_bulk_records(
     results = await asyncio.gather(*tasks)
     success_count = sum(1 for r in results if "error" not in r.status)
     logger.success(f"벌크 레코드 처리 완료. 성공: {success_count}/{len(results)}")
+    logger.info(f"벌크 레코드 생성/업데이트 응답: {results}")
     return results
 
 
@@ -118,4 +123,5 @@ async def delete_bulk_records(
     results = await asyncio.gather(*tasks)
     success_count = sum(1 for r in results if r.error_count == 0)
     logger.success(f"벌크 삭제 처리 완료. 성공: {success_count}/{len(results)}")
+    logger.info(f"벌크 레코드 삭제 응답: {results}")
     return results

@@ -18,8 +18,26 @@ async def generate_defect_pk(
     return f"{analysis_period}:{analysis_criteria}:{factory_code}:{process_code}:{product_model}:{defect_item}"
 
 
+async def is_target_ip(ip: str) -> bool:
+    """IP가 대상 IP인지 확인하는 함수"""
+    # TODO: 실제 대상 IP 목록 관리 방식에 따라 구현 필요
+    return True
+
+
 async def check_defect_item(request: InspectionRequest) -> Dict[str, Any]:
     """불량 항목 조회 및 재검사 필요 여부 판단"""
+    # IP 기반 필터링
+    target_line = await is_target_ip(request.ip)
+    
+    # 비대상 IP인 경우 None 응답 처리
+    if not target_line:
+        return {
+            "remove_retest": None,
+            "reproducibility_rate": 0.0,
+            "alarm_history": "0/0",
+            "target_line": False
+        }
+
     custom_pk = await generate_defect_pk(
         request.factory_code,
         request.process_code,
@@ -28,6 +46,10 @@ async def check_defect_item(request: InspectionRequest) -> Dict[str, Any]:
         request.analysis_period,
         request.analysis_criteria
     )
+    
+    # 응답에 IP를 포함한 PK 생성 (Redis 키로는 사용하지 않음)
+    response_pk = f"{custom_pk}:{request.ip}"
+    
     key_name = get_defect_key(custom_pk)
     redis = get_redis_instance()
 
@@ -35,25 +57,27 @@ async def check_defect_item(request: InspectionRequest) -> Dict[str, Any]:
         data = await redis.hgetall(key_name)
         if not data:
             return {
-                "retest_needed": False,
+                "remove_retest": False,
                 "reproducibility_rate": 0.0,
                 "alarm_history": "0/0",
-                "pk": custom_pk
+                "target_line": True,
+                "pk": response_pk
             }
 
         reproducibility_rate = float(data["reproducibility_rate"])
         total_inspections = int(data["total_inspections"])
         reproduced_count = int(data["reproduced_count"])
 
-        is_reproducible_enough = reproducibility_rate <= request.reproducibility_criteria
-        has_enough_data = total_inspections <= request.min_inspection_criteria
-        retest_needed_flag = not (is_reproducible_enough and has_enough_data)
+        is_reproducible_enough = reproducibility_rate >= request.reproducibility_criteria
+        has_enough_data = total_inspections >= request.min_inspection_criteria
+        remove_retest = is_reproducible_enough and has_enough_data
 
         return {
-            "retest_needed": not retest_needed_flag,
+            "remove_retest": remove_retest,
             "reproducibility_rate": reproducibility_rate,
-            "alarm_history": f"{reproduced_count}/{total_inspections}",
-            "pk": custom_pk
+            "alarm_history": f"{reproduced_count}/{total_inspections} ",
+            "target_line": True,
+            "pk": response_pk
         }
 
     except Exception as e:

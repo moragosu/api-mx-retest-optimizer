@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import field_validator
 from aredis_om import Field as RedisField
 from aredis_om import HashModel
@@ -46,6 +46,7 @@ class InspectionRequest(BaseModel):
 
     factory_code: str = Field(..., description="공장 코드", example="SEV")
     analysis_criteria: str = Field(..., description="분석 기준", example="retest")
+    ip: str = Field(..., description="IP 주소", example="10.56.123.125")
     process_code: str = Field(..., description="테스트 공정 코드", example="TOP41")
     product_model: str = Field(..., description="제품 모델", example="SM-S938U")
     min_inspection_criteria: int = Field(..., description="최소 검사 기준", example=5)
@@ -63,13 +64,14 @@ class BulkInspectionRequest(BaseModel):
 
 # API 응답 모델
 class InspectionResponse(BaseModel):
-    retest_needed: bool = Field(
-        ..., description="재검사 필요 여부 (true: 재검사 불필요, false: 재검사 필요)"
+    remove_retest: Optional[bool] = Field(
+        ..., description="재검사 제거 여부 (true: 재검사 불필요, false: 재검사 필요, None: 비대상 IP)"
     )
     reproducibility_rate: float = Field(..., description="조회된 재현률", example=0.98)
     alarm_history: str = Field(
         ..., description="알람 이력 (재현된 횟수/총 검사 횟수)", example="98/100"
     )
+    target_line: bool = Field(..., description="대상 라인 여부", example=True)
     request_data: InspectionRequest
 
 
