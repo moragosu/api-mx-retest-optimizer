@@ -26,15 +26,21 @@
 ├── pyproject.toml            # 프로젝트 설정 및 의존성 관리 파일
 ├── config.py                 # Pydantic-Settings를 사용한 환경 변수 관리
 ├── main.py                   # FastAPI 애플리케이션 메인 진입점 (lifespan, router 포함)
-├── models
-│   └── defect_model.py       # API 요청/응답 및 데이터 스키마 (Pydantic, Redis-OM)
-├── db
-│   └── redis_config.py       # Redis 연결 및 키 생성 헬퍼 함수
+├── domain
+│   ├── entities
+│   │   └── defect.py         # 핵심 도메인 엔티티 및 키 생성 로직
+│   └── repositories
+│       └── defect_repository.py # 도메인 리포지토리 인터페이스 정의
+├── application
+│   └── inspection_service.py # 비즈니스 규칙을 구현한 서비스 계층
+├── infrastructure
+│   └── redis
+│       ├── connection.py     # Redis 연결 수명주기 관리
+│       └── defect_repository.py # Redis 기반 리포지토리 구현체
 ├── routers
+│   ├── schemas.py            # API 전용 요청/응답 모델
 │   ├── single_item_router.py # 단일 항목 처리 API 라우터
 │   └── bulk_items_router.py  # 대량 항목 처리 API 라우터
-├── services
-│   ├── redis_operations.py   # Redis 작업 (저장, 조회 등) 서비스
 └── utils
     └── logging_config.py     # Loguru 로깅 설정
 ```

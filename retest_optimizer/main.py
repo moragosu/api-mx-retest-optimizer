@@ -3,15 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from loguru import logger
 
-from retest_optimizer.db.redis_config import (
-    close_redis_connection,
-    connect_to_redis,
-)
 from retest_optimizer.routers import bulk_items_router, single_item_router
 from retest_optimizer.utils.logging_config import setup_logging
+from retest_optimizer.infrastructure.redis.connection import RedisConnectionProvider
 
 # 로깅 설정
 setup_logging()
+
+
+redis_provider = RedisConnectionProvider()
 
 
 # 애플리케이션의 시작과 종료 시점에 실행될 로직을 관리
@@ -23,13 +23,14 @@ async def lifespan(app: FastAPI):
     - 종료 시: Redis 연결을 닫습니다.
     """
     logger.info("애플리케이션을 시작합니다...")
-    await connect_to_redis()
+    await redis_provider.connect()
+    app.state.redis_provider = redis_provider
     logger.info("Redis에 성공적으로 연결되었습니다.")
 
     yield  # 애플리케이션이 실행되는 동안 여기에서 대기합니다.
 
     logger.info("애플리케이션을 종료합니다...")
-    await close_redis_connection()
+    await redis_provider.disconnect()
     logger.info("Redis 연결이 성공적으로 종료되었습니다.")
 
 
