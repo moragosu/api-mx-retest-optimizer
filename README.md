@@ -26,15 +26,21 @@
 ├── pyproject.toml            # 프로젝트 설정 및 의존성 관리 파일
 ├── config.py                 # Pydantic-Settings를 사용한 환경 변수 관리
 ├── main.py                   # FastAPI 애플리케이션 메인 진입점 (lifespan, router 포함)
-├── models
-│   └── defect_model.py       # API 요청/응답 및 데이터 스키마 (Pydantic, Redis-OM)
-├── db
-│   └── redis_config.py       # Redis 연결 및 키 생성 헬퍼 함수
+├── domain
+│   ├── entities
+│   │   └── defect.py         # 핵심 도메인 엔티티 및 키 생성 로직
+│   └── repositories
+│       └── defect_repository.py # 도메인 리포지토리 인터페이스 정의
+├── application
+│   └── inspection_service.py # 비즈니스 규칙을 구현한 서비스 계층
+├── infrastructure
+│   └── redis
+│       ├── connection.py     # Redis 연결 수명주기 관리
+│       └── defect_repository.py # Redis 기반 리포지토리 구현체
 ├── routers
+│   ├── schemas.py            # API 전용 요청/응답 모델
 │   ├── single_item_router.py # 단일 항목 처리 API 라우터
 │   └── bulk_items_router.py  # 대량 항목 처리 API 라우터
-├── services
-│   ├── redis_operations.py   # Redis 작업 (저장, 조회 등) 서비스
 └── utils
     └── logging_config.py     # Loguru 로깅 설정
 ```
@@ -99,3 +105,39 @@ REDIS_PASSWORD=<PASSWORD>
 서버가 실행 중일 때, 웹 브라우저에서 자동 생성된 API 문서에 접근하여 엔드포인트를 탐색하고 테스트할 수 있습니다.
 - **Swagger UI**: http://127.0.0.1:8000/docs
 - **ReDoc**: http://127.0.0.1:8000/redoc
+
+### 6. 테스트 실행 방법
+이 프로젝트의 테스트 스위트는 **도메인 → 애플리케이션 → 인프라** 순으로 레이어를 따라가며 작성되어 있습니다. 테스트를 실행하기 전에 아래 순서를 참고하세요.
+
+#### 6.1 테스트 의존성 준비
+1. 개발용 가상환경을 초기화했다면 한 번만 다음 명령으로 테스트 도구를 설치합니다.
+   ```bash
+   uv sync --dev --native-tls
+   ```
+2. Redis 통합 테스트를 로컬에서 실행하려면 선택적으로 `fakeredis`를 추가합니다. (설치하지 않으면 해당 테스트는 자동으로 건너뜁니다.)
+   ```bash
+   uv pip install "fakeredis[asyncio]"
+   ```
+
+#### 6.2 전체 테스트 실행
+모든 계층의 테스트를 한 번에 실행하려면 프로젝트 루트에서 다음 명령을 실행합니다.
+
+```bash
+uv run pytest
+```
+
+#### 6.3 계층별 실행
+필요에 따라 관심 있는 계층만 선택적으로 실행할 수 있습니다.
+
+```bash
+# 도메인 규칙 검증
+uv run pytest tests/domain
+
+# 애플리케이션 서비스(유즈케이스) 검증
+uv run pytest tests/application
+
+# Redis 인프라 통합 테스트
+uv run pytest tests/infrastructure
+```
+
+> **참고:** `tests/infrastructure`는 `fakeredis`가 설치되어 있거나 별도의 Redis 테스트 인스턴스를 띄워 둔 환경에서만 정상적으로 동작합니다. 설치되어 있지 않으면 `pytest`가 해당 테스트를 건너뜁니다.

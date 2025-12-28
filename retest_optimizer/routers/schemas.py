@@ -1,49 +1,23 @@
 from typing import List, Optional
-from pydantic import field_validator
-from aredis_om import Field as RedisField
-from aredis_om import HashModel
-from pydantic import BaseModel, Field
-from redis.asyncio.client import Redis
 
-# 유틸리티 클래스: 유효성 검사 함수 모음
+from pydantic import BaseModel, Field, field_validator
+
+
 class ValidationUtils:
     @staticmethod
-    def validate_analysis_period(v):
-        if v not in [2, 4, 6]:
+    def validate_analysis_period(value: int) -> int:
+        if value not in {2, 4, 6}:
             raise ValueError("분석 기간은 2, 4, 6주만 가능합니다")
-        return v
+        return value
 
     @staticmethod
-    def validate_analysis_criteria(v):
-        if v.lower() not in ["retest", "retry"]:
+    def validate_analysis_criteria(value: str) -> str:
+        if value.lower() not in {"retest", "retry"}:
             raise ValueError("분석 기준은 retest 또는 retry만 가능합니다")
-        return v
+        return value
 
 
-class Defect(HashModel):
-    """
-    Redis에 저장될 불량 데이터의 스키마를 정의합니다. (직접 인스턴스화하여 사용하지는 않음)
-    HashModel을 상속받아 Redis-OM과 호환되는 키 네임스페이스를 유지합니다.
-    """
-
-    factory_code: str = RedisField(description="공장 코드 (예: SEV)")
-    process_code: str = RedisField(description="테스트 공정 코드 (예: TOP41)")
-    product_model: str = RedisField(description="제품 모델 (예: SM-S938U)")
-    defect_item: str = RedisField(description="불량 항목 (예: NX_RX_SURAD)")
-    reproducibility_rate: float = RedisField(
-        default=0.0, description="재현률 (0.0 ~ 1.0)"
-    )
-    total_inspections: int = RedisField(default=0, description="총 검사 횟수")
-    reproduced_count: int = RedisField(default=0, description="재현된 횟수")
-
-    class Meta:
-        database: Redis
-
-
-# API 요청 모델
 class InspectionRequest(BaseModel):
-    """검사기로부터 받는 요청 데이터 모델입니다."""
-
     factory_code: str = Field(..., description="공장 코드", example="SEV")
     analysis_criteria: str = Field(..., description="분석 기준", example="retest")
     ip: str = Field(..., description="IP 주소", example="10.56.123.125")
@@ -54,23 +28,18 @@ class InspectionRequest(BaseModel):
     analysis_period: int = Field(..., description="분석 기간 (주 단위)", example=4)
     defect_item: str = Field(..., description="불량 항목", example="NX_RX_SURAD")
 
-    _validate_analysis_period = field_validator('analysis_period')(ValidationUtils.validate_analysis_period)
-    _validate_analysis_criteria = field_validator('analysis_criteria')(ValidationUtils.validate_analysis_criteria)
+    _validate_analysis_period = field_validator("analysis_period")(ValidationUtils.validate_analysis_period)
+    _validate_analysis_criteria = field_validator("analysis_criteria")(ValidationUtils.validate_analysis_criteria)
 
 
 class BulkInspectionRequest(BaseModel):
     requests: List[InspectionRequest]
 
 
-# API 응답 모델
 class InspectionResponse(BaseModel):
-    remove_retest: Optional[bool] = Field(
-        ..., description="재검사 제거 여부 (true: 재검사 불필요, false: 재검사 필요, None: 비대상 IP)"
-    )
+    remove_retest: Optional[bool] = Field(..., description="재검사 제거 여부")
     reproducibility_rate: float = Field(..., description="조회된 재현률", example=0.98)
-    alarm_history: str = Field(
-        ..., description="알람 이력 (재현된 횟수/총 검사 횟수)", example="98/100"
-    )
+    alarm_history: str = Field(..., description="알람 이력", example="98/100")
     target_line: bool = Field(..., description="대상 라인 여부", example=True)
     request_data: InspectionRequest
 
@@ -90,12 +59,17 @@ class CreateRecordRequest(BaseModel):
     analysis_criteria: str = Field(..., description="분석 기준", example="retest")
     analysis_period: int = Field(..., description="분석 기간 (주 단위)", example=4)
 
-    _validate_analysis_period = field_validator('analysis_period')(ValidationUtils.validate_analysis_period)
-    _validate_analysis_criteria = field_validator('analysis_criteria')(ValidationUtils.validate_analysis_criteria)
+    _validate_analysis_period = field_validator("analysis_period")(ValidationUtils.validate_analysis_period)
+    _validate_analysis_criteria = field_validator("analysis_criteria")(ValidationUtils.validate_analysis_criteria)
 
 
 class BulkCreateRecordRequest(BaseModel):
     records: List[CreateRecordRequest]
+
+
+class CreateResponse(BaseModel):
+    pk: str
+    status: str
 
 
 class DeleteRecordRequest(BaseModel):
@@ -114,8 +88,3 @@ class DeleteResponse(BaseModel):
     deleted_count: int = Field(..., description="성공적으로 삭제된 레코드 수")
     error_count: int = Field(..., description="삭제 실패 횟수")
     error_messages: List[str] = Field(default_factory=list, description="에러 메시지 목록")
-
-
-class CreateResponse(BaseModel):
-    pk: str
-    status: str
